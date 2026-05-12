@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solicitação de Passagens e Diárias</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-lockup">
+        <span class="brand-mark brand-logo"><img src="img/Captura de tela 2026-04-14 121940.png" alt="Fiocruz Brasília" /></span>
+        <div>
+          <span class="eyebrow">Núcleo de Apoio à Gestão de Projetos</span>
+          <h1>Passagens & Diárias</h1>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span class="status-dot"></span>
+        <span>Sistema interno de solicitações</span>
+      </div>
+    </header>
+
+    <main>
+      <section id="homePage" class="landing-card">
+        <div class="premium-hero">
+          <div class="hero-copy">
+            <span class="badge">nhtFluxo digital NUGP</span>
+            <h2>Solicitações com experiência mais clara, elegante e objetiva.</h2>
+            <p>
+              Centralize pedidos de passagens e diárias em uma interface limpa, com painel executivo,
+              preenchimento assistido por projeto e exportação para acompanhamento administrativo.
+            </p>
+            <div class="home-buttons choice-buttons">
+              <button class="btn btn-admin" type="button" id="chooseAdminButton">Área Administrativa</button>
+              <button class="btn btn-secondary" type="button" id="chooseFormButton">Responder Formulário</button>
+            </div>
+          </div>
+
+          <div class="hero-panel" aria-label="Resumo do sistema">
+            <div class="panel-glow"></div>
+            <div class="hero-panel-header">
+              <span class="chip">Live preview</span>
+              <span id="storageModeLabel">Banco local</span>
+            </div>
+            <div class="metric-stack">
+              <article>
+                <small>Fluxo</small>
+                <strong>Solicitação → PDF → Dashboard</strong>
+              </article>
+              <article>
+                <small>Validação</small>
+                <strong>CPF, datas e projeto FIOTEC</strong>
+              </article>
+              <article>
+                <small>Gestão</small>
+                <strong>CSV, busca e exclusão</strong>
+              </article>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature-list premium-features">
+          <div class="feature-item"><span class="feature-icon">01</span><div><strong>Formulário público</strong><p class="mini-note">Cadastro guiado para evento, viajante, rota e diárias.</p></div></div>
+          <div class="feature-item"><span class="feature-icon">02</span><div><strong>Projeto vinculado</strong><p class="mini-note">O ID FIOTEC preenche meta, coordenador e setor automaticamente.</p></div></div>
+          <div class="feature-item"><span class="feature-icon">03</span><div><strong>Painel executivo</strong><p class="mini-note">Indicadores, gastos estimados, rotas e exportação CSV.</p></div></div>
+        </div>
+      </section>
+
+      <section id="loginPage" class="card login-card hidden">
+        <div class="section-heading compact-heading">
+          <div>
+            <span class="section-kicker">Acesso restrito</span>
+            <h2>Login Administrativo</h2>
+            <p class="subtitle">Acesso simples por enquanto: <strong>login admin</strong> e <strong>senha 123456</strong>.</p>
+          </div>
+          <button class="btn btn-ghost" type="button" data-page="home">Voltar</button>
+        </div>
+        <form id="loginForm" class="auth-panel simple-login">
+          <div class="form-group full"><label>Login</label><input id="login" autocomplete="username" value="admin" required /></div>
+          <div class="form-group full"><label>Senha</label><input type="password" id="password" autocomplete="current-password" value="123456" required /></div>
+          <div id="loginMessage"></div>
+          <div class="actions"><button type="submit">Entrar no painel</button></div>
+        </form>
+      </section>
+
+      <section id="formPage" class="card form-card hidden">
+        <div class="section-heading form-hero-heading">
+          <div>
+            <span class="section-kicker">Nova solicitação</span>
+            <h2>Formulário para cadastro de solicitações</h2>
+            <p class="subtitle">Preencha os campos obrigatórios marcados com asterisco. O sistema validará CPF, datas e projeto antes de salvar.</p>
+          </div>
+          <button class="btn btn-ghost" type="button" data-page="home">Voltar ao início</button>
+        </div>
+        <form id="requestForm">
+          <section class="form-section edit-lookup-section">
+            <h3><span>ID</span> Editar solicitacao enviada</h3>
+            <div class="edit-lookup-row">
+              <label class="search-label">
+                <span>ID da solicitacao</span>
+                <input id="editRequestId" placeholder="Ex.: SOL-20260512-ABC12345" />
+              </label>
+              <button type="button" id="loadEditRequestButton">Carregar para edicao</button>
+              <button class="btn btn-ghost hidden" type="button" id="cancelEditButton">Cancelar edicao</button>
+            </div>
+            <p class="mini-note">Informe o ID gerado no envio para recuperar o cadastro e atualizar os dados no mesmo registro.</p>
+          </section>
+
+          <section class="form-section">
+            <h3><span>01</span> Cadastro do Evento</h3>
+            <div class="form-grid">
+              <div class="form-group full"><label>1. Descrição da Solicitação <span class="required">*</span></label><input name="descricaoSolicitacao" required /></div>
+              <div class="form-group full"><label>2. Nome do Evento <span class="required">*</span></label><textarea name="nomeEvento" required></textarea></div>
+              <div class="form-group"><label>3. Data do Evento <span class="required">*</span></label><input type="date" name="dataEvento" required /></div>
+              <div class="form-group"><label>4. Local de Realização do Evento <span class="required">*</span></label><input name="localEvento" required /></div>
+              <div class="form-group full"><label>5. Justificativa da Solicitação <span class="required">*</span></label><textarea name="justificativa" required></textarea></div>
+            </div>
+          </section>
+
+          <section class="form-section accent-section">
+            <h3><span>02</span> Projeto Vinculado</h3>
+            <div class="form-grid">
+              <div class="form-group"><label>6. Identificação do Projeto - ID FIOTEC <span class="required">*</span></label><input id="idFiotec" name="idFiotec" list="projectOptions" placeholder="Ex.: GEREB-005-FEX-20" required /><datalist id="projectOptions"></datalist><small id="projectFeedback" class="mini-note">Digite ou selecione um ID FIOTEC.</small></div>
+              <div class="form-group"><label>7. Projeto ID / Meta do Projeto <span class="required">*</span></label><input name="metaProjeto" readonly required /></div>
+              <div class="form-group"><label>8. Coordenador</label><input name="coordenador" readonly /></div>
+              <div class="form-group"><label>9. Setor Fiocruz</label><input name="setorFiocruz" readonly /></div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h3><span>03</span> Informações do Viajante</h3>
+            <div class="form-grid">
+              <div class="form-group full"><label>10. Nome Completo <span class="required">*</span></label><input name="nomeCompleto" required /></div>
+              <div class="form-group"><label>11. Data de Nascimento <span class="required">*</span></label><input type="date" name="dataNascimento" required /></div>
+              <div class="form-group"><label>12. Cargo / Função <span class="required">*</span></label><input name="cargoFuncao" required /></div>
+              <div class="form-group"><label>13. CPF - somente números <span class="required">*</span></label><input name="cpf" maxlength="11" pattern="[0-9]{11}" inputmode="numeric" required /></div>
+              <div class="form-group">
+                <label>14. Banco <span class="required">*</span></label>
+                <input name="banco" list="bankOptions" placeholder="Digite código ou nome do banco" required />
+                <datalist id="bankOptions"></datalist>
+                <small class="mini-note">Pesquise pelo código ou pelo nome da instituição bancária.</small>
+              </div>
+              <div class="form-group"><label>15. Agência <span class="required">*</span></label><input name="agencia" required /></div>
+              <div class="form-group"><label>16. Conta Corrente <span class="required">*</span></label><input name="contaCorrente" required /></div>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <h3><span>04</span> Informações da Solicitação</h3>
+            <div class="form-grid">
+              <div class="form-group"><label>17. Qual a necessidade? <span class="required">*</span></label><select name="necessidade" required><option value="">Selecione</option><option>Passagens</option><option>Diárias</option><option>Passagens e Diárias</option></select></div>
+              <div class="form-group"><label>18. Local de Origem <span class="required">*</span></label><input name="localOrigem" required /></div>
+              <div class="form-group"><label>19. Data de Ida <span class="required">*</span></label><input type="date" name="dataIda" required /></div>
+              <div class="form-group"><label>20. Horário de Ida <span class="required">*</span></label><select name="horarioIda" required><option value="">Selecione</option><option>MANHÃ</option><option>TARDE</option><option>NOITE</option><option>INDIFERENTE</option></select></div>
+              <div class="form-group full"><label>21. Indicação do voo de ida</label><input name="vooIda" /></div>
+              <div class="form-group"><label>22. Local de Destino <span class="required">*</span></label><input name="localDestino" required /></div>
+              <div class="form-group"><label>23. Data de Volta <span class="required">*</span></label><input type="date" name="dataVolta" required /></div>
+              <div class="form-group"><label>24. Horário de Volta <span class="required">*</span></label><select name="horarioVolta" required><option value="">Selecione</option><option>MANHÃ</option><option>TARDE</option><option>NOITE</option><option>INDIFERENTE</option></select></div>
+              <div class="form-group"><label>25. É necessário valor máximo para diária?</label><select id="necessarioValorMaximoDiaria" name="necessarioValorMaximoDiaria"><option value="">Selecione</option><option>SIM</option><option>NÃO</option></select></div>
+              <div class="form-group">
+                <label>26. Qual o valor máximo para diária total?</label>
+                <div class="money-field">
+                  <span>R$</span>
+                  <input id="valorMaximoDiaria" name="valorMaximoDiaria" inputmode="decimal" placeholder="0,00" disabled />
+                </div>
+                <small id="dailyLimitHint" class="mini-note">Selecione "SIM" no campo 25 para informar o valor em dinheiro.</small>
+              </div>
+            </div>
+          </section>
+
+          <div id="formMessage"></div>
+          <div class="actions form-actions"><button type="submit" id="requestSubmitButton">Enviar, salvar e gerar PDF</button><button class="btn btn-ghost" type="button" data-page="home">Voltar ao início</button></div>
+        </form>
+      </section>
+
+      <section id="adminPage" class="admin-dashboard hidden">
+        <div class="dashboard-shell">
+          <aside class="dashboard-sidebar" aria-label="Menu administrativo">
+            <div class="sidebar-logo"><span class="logo-mark sidebar-logo-mark"><img src="img/Captura de tela 2026-04-14 121940.png" alt="Fiocruz Brasília" /></span><span>NUGP Control</span></div>
+            <nav class="sidebar-nav"><button type="button" class="active">Dashboard</button><button type="button" data-export>Exportar CSV</button><button type="button" data-logout>Sair</button></nav>
+          </aside>
+          <div class="dashboard-content">
+            <div id="dashboardTop" class="dashboard-header">
+              <div>
+                <span class="section-kicker">Visão administrativa</span>
+                <h2>Painel Administrativo</h2>
+                <p id="storageSubtitle" class="subtitle">Dados carregados do banco interno do navegador.</p>
+              </div>
+              <div class="dashboard-actions"><button type="button" id="refreshButton">Atualizar</button><button type="button" data-export>Exportar CSV</button><button type="button" class="btn-ghost" data-logout>Sair</button></div>
+            </div>
+
+            <section class="dashboard-section"><div class="kpi-grid"><article class="kpi-card"><div><h4>Total de solicitações</h4><strong id="totalRequests">0</strong><small>Registros salvos</small></div><span class="kpi-ring"></span></article><article class="kpi-card"><div><h4>Último envio</h4><strong id="lastRequest" style="font-size:18px">-</strong><small>Mais recente</small></div><span class="kpi-ring"></span></article><article class="kpi-card"><div><h4>Recebidas</h4><strong id="pendingRequests">0</strong><small>Aguardando análise</small></div><span class="kpi-ring"></span></article><article class="kpi-card"><div><h4>Passagens</h4><strong id="passageRequests">0</strong><small>Pedidos de passagem</small></div><span class="kpi-ring"></span></article><article class="kpi-card"><div><h4>Diárias</h4><strong id="dailyRequests">0</strong><small>Pedidos de diária</small></div><span class="kpi-ring"></span></article></div></section>
+            <section id="financePanel" class="dashboard-section"><div class="dashboard-card"><div class="panel-heading"><div><span class="section-kicker">Finanças</span><h3>Contabilidade de gastos</h3><p class="table-note">Resumo calculado com base no campo “valor máximo para diária total”. Use para ter uma visão rápida dos limites informados.</p></div></div><div class="insight-grid"><article class="insight-card"><h4>Total estimado de diárias</h4><strong id="totalDailyLimit">R$ 0,00</strong><small>Soma dos valores preenchidos.</small></article><article class="insight-card"><h4>Solicitações com valor</h4><strong id="requestsWithDailyLimit">0</strong><small>Registros com valor numérico identificado.</small></article><article class="insight-card"><h4>Média por solicitação</h4><strong id="averageDailyLimit">R$ 0,00</strong><small>Média apenas entre solicitações com valor.</small></article><article class="insight-card"><h4>Projeto com maior estimativa</h4><strong id="topProjectCost">-</strong><small>Agrupado por meta/projeto.</small></article></div><div id="projectCostList" class="insight-list"></div></div></section>
+            <section id="flightPanel" class="dashboard-section"><div class="dashboard-card"><div class="panel-heading"><div><span class="section-kicker">Logística</span><h3>Informações dos voos</h3><p class="table-note">Acompanhe pedidos de passagens, rotas mais frequentes e registros que ainda estão sem indicação de voo.</p></div></div><div class="insight-grid"><article class="insight-card"><h4>Pedidos com indicação de voo</h4><strong id="requestsWithFlight">0</strong><small>Campo “Indicação do voo de ida” preenchido.</small></article><article class="insight-card"><h4>Rotas diferentes</h4><strong id="uniqueRoutes">0</strong><small>Origem e destino informados.</small></article><article class="insight-card"><h4>Rota mais frequente</h4><strong id="mostCommonRoute">-</strong><small>Maior volume de solicitações.</small></article><article class="insight-card"><h4>Passagens sem voo indicado</h4><strong id="missingFlightInfo">0</strong><small>Pedidos de passagem que precisam de complemento.</small></article></div><div id="flightRouteList" class="insight-list"></div></div></section>
+            <section class="dashboard-section"><div class="dashboard-card"><div class="panel-heading"><div><span class="section-kicker">Consulta rápida</span><h3>Busca inteligente</h3><p>Pesquise por nome, evento, projeto, origem ou destino.</p></div></div><div class="search-row"><label class="search-label"><span>Pesquisar solicitações</span><input id="adminSearch" placeholder="Digite para filtrar..." /></label><div class="admin-tools"><button type="button" id="clearSearchButton">Limpar filtro</button></div></div></div></section>
+            <section class="dashboard-section"><div class="admin-table-panel"><div class="panel-heading"><div><span class="section-kicker">Registros</span><h3>Solicitações cadastradas</h3><p class="table-note">Cada solicitação aparece em um cartão próprio, com os dados organizados por assunto e ações rápidas.</p></div></div><div id="responsesTable" class="records-list"></div></div></section>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/banks.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
