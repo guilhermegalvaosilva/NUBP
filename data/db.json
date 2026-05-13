@@ -1,0 +1,26 @@
+{
+  "solicitacoes": [],
+  "alteracoes": [],
+  "admins": [
+    {
+      "id": "aa9a1379-eb94-4de3-b9e7-f2b7eb79f38d",
+      "login": "admin",
+      "passwordHash": "32fef60e860800718418abf3db5a5464:6507120d1e3faa6ddb28047fadf788d27bd79251f7475d9b8e02bdda07b0abc4",
+      "createdAt": "padrao"
+    }
+  ],
+  "sessions": [
+    {
+      "token": "67c147b28a1e491788b518e5ed50b4c9be4f8e3777224851bf9e4bdf6559002f",
+      "login": "admin",
+      "createdAt": 1778689184739,
+      "expiresAt": 1778717984739
+    },
+    {
+      "token": "3ac1e98c08d14ffba62c61eacbc1ac36022e0ff85d134f9c907a9cf840e7aa3b",
+      "login": "admin",
+      "createdAt": 1778689400121,
+      "expiresAt": 1778718200121
+    }
+  ]
+}
