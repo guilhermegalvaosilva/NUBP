@@ -62,11 +62,11 @@ function initializeCloudDatabase() {
 }
 
 function usingCloudDatabase() {
-  return Boolean(db.cloud);
+  return Boolean(db.cloud) && !db.api;
 }
 
 function usingApiDatabase() {
-  return Boolean(db.api) && !usingCloudDatabase();
+  return Boolean(db.api);
 }
 
 async function apiRequest(path, options = {}) {
@@ -722,6 +722,46 @@ const csvHeaders = [
   "Valor Máximo Diária",
 ];
 
+const excelColumns = [
+  { group: "Controle", key: "id", header: "Protocolo" },
+  { group: "Controle", key: "createdAt", header: "Data de Envio" },
+  { group: "Controle", key: "status", header: "Status" },
+  {
+    group: "Evento",
+    key: "descricaoSolicitacao",
+    header: "Descrição da Solicitação",
+  },
+  { group: "Evento", key: "nomeEvento", header: "Nome do Evento" },
+  { group: "Evento", key: "dataEvento", header: "Data do Evento" },
+  { group: "Evento", key: "localEvento", header: "Local do Evento" },
+  { group: "Evento", key: "justificativa", header: "Justificativa" },
+  { group: "Projeto", key: "idFiotec", header: "ID FIOTEC" },
+  { group: "Projeto", key: "metaProjeto", header: "Meta do Projeto" },
+  { group: "Projeto", key: "coordenador", header: "Coordenador" },
+  { group: "Projeto", key: "setorFiocruz", header: "Setor Fiocruz" },
+  { group: "Viajante", key: "nomeCompleto", header: "Nome Completo" },
+  { group: "Viajante", key: "dataNascimento", header: "Data de Nascimento" },
+  { group: "Viajante", key: "cargoFuncao", header: "Cargo / Função" },
+  { group: "Viajante", key: "cpf", header: "CPF" },
+  { group: "Viajante", key: "banco", header: "Banco" },
+  { group: "Viajante", key: "agencia", header: "Agência" },
+  { group: "Viajante", key: "contaCorrente", header: "Conta Corrente" },
+  { group: "Viagem", key: "necessidade", header: "Necessidade" },
+  { group: "Viagem", key: "localOrigem", header: "Local de Origem" },
+  { group: "Viagem", key: "dataIda", header: "Data de Ida" },
+  { group: "Viagem", key: "horarioIda", header: "Horário de Ida" },
+  { group: "Viagem", key: "vooIda", header: "Voo de Ida" },
+  { group: "Viagem", key: "localDestino", header: "Local de Destino" },
+  { group: "Viagem", key: "dataVolta", header: "Data de Volta" },
+  { group: "Viagem", key: "horarioVolta", header: "Horário de Volta" },
+  {
+    group: "Diárias",
+    key: "necessarioValorMaximoDiaria",
+    header: "Necessário Valor Máximo",
+  },
+  { group: "Diárias", key: "valorMaximoDiaria", header: "Valor Máximo Total" },
+];
+
 const auditColumns = [
   { key: "titulo", label: "Titulo" },
   { key: "idAlteracao", label: "ID_ALTERACAO" },
@@ -732,7 +772,7 @@ const auditColumns = [
   { key: "campoAlterado", label: "CAMPO_ALTERADO" },
   { key: "alteradoPor", label: "ALTERADO_POR" },
   { key: "valorOriginal", label: "VALOR_ORIGINAL" },
-  { key: "valorNovo", label: "VALOR_OVO" },
+  { key: "valorNovo", label: "VALOR_NOVO" },
   { key: "origem", label: "ORIGEM" },
   { key: "observacao", label: "OBSERVACAO" },
 ];
@@ -797,6 +837,25 @@ function updateStorageStatus() {
         ? "Dados sincronizados pelo backend local e disponíveis para todos que acessarem este servidor."
         : "Dados carregados do banco interno deste navegador. Configure o Firebase ou use o backend local para sincronizar entre computadores.";
   }
+}
+
+function todayInputValue() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function configureDateFields() {
+  const form = document.getElementById("requestForm");
+  if (!form) return;
+  const today = todayInputValue();
+  ["dataEvento", "dataIda", "dataVolta"].forEach((fieldName) => {
+    const field = form.elements[fieldName];
+    if (field) field.min = today;
+  });
+  if (form.elements.dataNascimento) form.elements.dataNascimento.max = today;
 }
 
 function populateProjectDatalist() {
@@ -919,64 +978,209 @@ function generatePDF(data) {
     return alert(
       "Biblioteca de PDF não carregada. Verifique sua conexão com a internet.",
     );
-  const docPDF = new window.jspdf.jsPDF();
-  let y = 16;
-  const addText = (label, value) => {
-    if (y > 280) {
-      docPDF.addPage();
-      y = 16;
+  const docPDF = new window.jspdf.jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = docPDF.internal.pageSize.getWidth();
+  const pageHeight = docPDF.internal.pageSize.getHeight();
+  const margin = 14;
+  const headerHeight = 42;
+  const logoImage = document.querySelector(
+    ".brand-logo img, .sidebar-logo-mark img",
+  );
+  let y = headerHeight + 12;
+
+  const sections = [
+    {
+      title: "Cadastro do Evento",
+      fields: [
+        ["Descrição da solicitação", data.descricaoSolicitacao],
+        ["Nome do evento", data.nomeEvento],
+        ["Data do evento", formatDate(data.dataEvento)],
+        ["Local do evento", data.localEvento],
+        ["Justificativa", data.justificativa],
+      ],
+    },
+    {
+      title: "Projeto Vinculado",
+      fields: [
+        ["ID FIOTEC", data.idFiotec],
+        ["Projeto ID / Meta", data.metaProjeto],
+        ["Coordenador", data.coordenador],
+        ["Setor Fiocruz", data.setorFiocruz],
+      ],
+    },
+    {
+      title: "Dados do Viajante",
+      fields: [
+        ["Nome completo", data.nomeCompleto],
+        ["Data de nascimento", formatDate(data.dataNascimento)],
+        ["Cargo / Função", data.cargoFuncao],
+        ["CPF", data.cpf],
+        ["Banco", data.banco],
+        ["Agência", data.agencia],
+        ["Conta corrente", data.contaCorrente],
+      ],
+    },
+    {
+      title: "Dados da Viagem",
+      fields: [
+        ["Necessidade", data.necessidade],
+        ["Origem", data.localOrigem],
+        ["Data de ida", formatDate(data.dataIda)],
+        ["Horário de ida", data.horarioIda],
+        ["Voo de ida", data.vooIda],
+        ["Destino", data.localDestino],
+        ["Data de volta", formatDate(data.dataVolta)],
+        ["Horário de volta", data.horarioVolta],
+        ["Valor máximo para diária", data.necessarioValorMaximoDiaria],
+        ["Valor informado", data.valorMaximoDiaria],
+      ],
+    },
+  ];
+
+  const drawHeader = () => {
+    docPDF.setFillColor(18, 63, 93);
+    docPDF.rect(0, 0, pageWidth, headerHeight - 2, "F");
+    docPDF.setFillColor(185, 138, 52);
+    docPDF.rect(0, headerHeight - 2, pageWidth, 2, "F");
+
+    docPDF.setFillColor(255, 255, 255);
+    docPDF.roundedRect(margin, 8, 48, 20, 2, 2, "F");
+    if (logoImage?.complete) {
+      try {
+        docPDF.addImage(logoImage, "PNG", margin + 4, 11, 40, 14);
+      } catch (error) {
+        docPDF.setTextColor(18, 63, 93);
+        docPDF.setFont("helvetica", "bold");
+        docPDF.setFontSize(9);
+        docPDF.text("FIOCRUZ", margin + 8, 20);
+      }
+    } else {
+      docPDF.setTextColor(18, 63, 93);
+      docPDF.setFont("helvetica", "bold");
+      docPDF.setFontSize(9);
+      docPDF.text("FIOCRUZ", margin + 8, 20);
     }
-    const lines = docPDF.splitTextToSize(`${label}: ${value || "-"}`, 180);
-    docPDF.text(lines, 15, y);
-    y += lines.length * 7;
-  };
-  const addSection = (title) => {
-    y += 5;
+
+    docPDF.setTextColor(255, 255, 255);
     docPDF.setFont("helvetica", "bold");
-    docPDF.setTextColor(0, 59, 113);
-    docPDF.text(title, 15, y);
-    docPDF.setTextColor(0, 0, 0);
+    docPDF.setFontSize(15);
+    docPDF.text("Comprovante de Solicitação", margin + 58, 15);
+    docPDF.setFontSize(9);
     docPDF.setFont("helvetica", "normal");
+    docPDF.text("Passagens e Diárias | NUGP", margin + 58, 23);
+    docPDF.setFont("helvetica", "bold");
+    docPDF.text(`Protocolo: ${data.id}`, pageWidth - margin, 14, {
+      align: "right",
+    });
+    docPDF.setFont("helvetica", "normal");
+    docPDF.text(
+      `Emitido em: ${data.createdAtClient || new Date().toLocaleString("pt-BR")}`,
+      pageWidth - margin,
+      22,
+      { align: "right" },
+    );
+    docPDF.setTextColor(23, 32, 46);
+  };
+
+  const drawFooter = () => {
+    const pages = docPDF.internal.getNumberOfPages();
+    for (let page = 1; page <= pages; page += 1) {
+      docPDF.setPage(page);
+      docPDF.setDrawColor(217, 226, 236);
+      docPDF.line(margin, pageHeight - 16, pageWidth - margin, pageHeight - 16);
+      docPDF.setTextColor(102, 117, 138);
+      docPDF.setFontSize(8);
+      docPDF.text(
+        "Documento gerado automaticamente pelo sistema NUGP.",
+        margin,
+        pageHeight - 10,
+      );
+      docPDF.text(
+        `Página ${page} de ${pages}`,
+        pageWidth - margin,
+        pageHeight - 10,
+        { align: "right" },
+      );
+    }
+  };
+
+  const ensureSpace = (height) => {
+    if (y + height <= pageHeight - 22) return;
+    docPDF.addPage();
+    drawHeader();
+    y = headerHeight + 12;
+  };
+
+  const drawSummary = () => {
+    docPDF.setFillColor(247, 250, 252);
+    docPDF.setDrawColor(217, 226, 236);
+    docPDF.roundedRect(margin, y, pageWidth - margin * 2, 22, 2, 2, "FD");
+    docPDF.setFont("helvetica", "bold");
+    docPDF.setFontSize(9);
+    docPDF.setTextColor(18, 63, 93);
+    docPDF.text("Status", margin + 6, y + 8);
+    docPDF.text("Solicitante", margin + 48, y + 8);
+    docPDF.text("Necessidade", margin + 118, y + 8);
+    docPDF.setFont("helvetica", "normal");
+    docPDF.setTextColor(23, 32, 46);
+    docPDF.text(data.status || "Recebida", margin + 6, y + 16);
+    docPDF.text(
+      docPDF.splitTextToSize(data.nomeCompleto || "-", 58),
+      margin + 48,
+      y + 16,
+    );
+    docPDF.text(data.necessidade || "-", margin + 118, y + 16);
+    y += 32;
+  };
+
+  const drawSection = (section) => {
+    const rowHeights = section.fields.map(([label, value]) => {
+      const lines = docPDF.splitTextToSize(String(value || "-"), 116);
+      return Math.max(10, lines.length * 5 + 5);
+    });
+    const sectionHeight =
+      13 + rowHeights.reduce((sum, height) => sum + height, 0) + 4;
+    ensureSpace(sectionHeight);
+
+    docPDF.setFillColor(18, 63, 93);
+    docPDF.roundedRect(margin, y, pageWidth - margin * 2, 10, 2, 2, "F");
+    docPDF.setTextColor(255, 255, 255);
+    docPDF.setFont("helvetica", "bold");
+    docPDF.setFontSize(10);
+    docPDF.text(section.title, margin + 5, y + 6.8);
+    y += 13;
+
+    section.fields.forEach(([label, value], index) => {
+      const rowHeight = rowHeights[index];
+      docPDF.setFillColor(
+        index % 2 === 0 ? 255 : 248,
+        index % 2 === 0 ? 255 : 250,
+        index % 2 === 0 ? 255 : 252,
+      );
+      docPDF.setDrawColor(217, 226, 236);
+      docPDF.rect(margin, y, pageWidth - margin * 2, rowHeight, "FD");
+      docPDF.setTextColor(102, 117, 138);
+      docPDF.setFont("helvetica", "bold");
+      docPDF.setFontSize(8);
+      docPDF.text(label, margin + 5, y + 6);
+      docPDF.setTextColor(23, 32, 46);
+      docPDF.setFont("helvetica", "normal");
+      docPDF.setFontSize(9);
+      docPDF.text(
+        docPDF.splitTextToSize(String(value || "-"), 116),
+        margin + 62,
+        y + 6,
+      );
+      y += rowHeight;
+    });
     y += 8;
   };
 
-  docPDF.setFont("helvetica", "bold");
-  docPDF.text("SOLICITACAO DE PASSAGENS E DIARIAS", 15, y);
-  y += 10;
-  docPDF.setFont("helvetica", "normal");
-  addText("Codigo", data.id);
-  addText("Data de envio", data.createdAtClient);
-  addSection("Seção 1 - Cadastro do Evento");
-  addText("Descrição", data.descricaoSolicitacao);
-  addText("Nome do Evento", data.nomeEvento);
-  addText("Data do Evento", formatDate(data.dataEvento));
-  addText("Local", data.localEvento);
-  addText("Justificativa", data.justificativa);
-  addSection("Seção 2 - Projeto Vinculado");
-  addText("ID FIOTEC", data.idFiotec);
-  addText("Projeto ID", data.metaProjeto);
-  addText("Coordenador", data.coordenador);
-  addText("Setor", data.setorFiocruz);
-  addSection("Seção 3 - Viajante");
-  addText("Nome", data.nomeCompleto);
-  addText("Nascimento", formatDate(data.dataNascimento));
-  addText("Cargo", data.cargoFuncao);
-  addText("CPF", data.cpf);
-  addText("Banco", data.banco);
-  addText("Agência", data.agencia);
-  addText("Conta", data.contaCorrente);
-  addSection("Seção 4 - Solicitação");
-  addText("Necessidade", data.necessidade);
-  addText("Origem", data.localOrigem);
-  addText("Data Ida", formatDate(data.dataIda));
-  addText("Horário Ida", data.horarioIda);
-  addText("Voo Ida", data.vooIda);
-  addText("Destino", data.localDestino);
-  addText("Data Volta", formatDate(data.dataVolta));
-  addText("Horário Volta", data.horarioVolta);
-  addText("Valor máximo diária", data.necessarioValorMaximoDiaria);
-  addText("Valor máximo", data.valorMaximoDiaria);
-  docPDF.save(`solicitacao_${data.id}.pdf`);
+  drawHeader();
+  drawSummary();
+  sections.forEach(drawSection);
+  drawFooter();
+  docPDF.save(`comprovante_${data.id}.pdf`);
 }
 
 function createdAtDisplay(item) {
@@ -1024,7 +1228,7 @@ function buildAuditEntry(data, overrides = {}) {
     dataAlteracao: now.toISOString(),
     dataAlteracaoClient: now.toLocaleString("pt-BR"),
     campoAlterado: "-",
-    alteradoPor: user.login || "usuário do formulário",
+    alteradoPor: user?.login || "usuário do formulário",
     valorOriginal: "-",
     valorNovo: "-",
     origem: "Formulário",
@@ -1699,16 +1903,58 @@ async function loadRequests() {
   }
 }
 
-function convertRowsToCSV(rows) {
-  const headerLine = csvHeaders
-    .map((header) => `"${String(header).replace(/"/g, '""')}"`)
-    .join(",");
-  const body = rows.map((item) =>
-    requestFields
-      .map((key) => `"${String(displayValue(key, item)).replace(/"/g, '""')}"`)
-      .join(","),
-  );
-  return [headerLine].concat(body).join("\n");
+function excelCell(value) {
+  return escapeHTML(String(value ?? "-"));
+}
+
+function convertRowsToExcel(rows) {
+  const generatedAt = new Date().toLocaleString("pt-BR");
+  const groupLine = excelColumns
+    .map((column) => `<th class="group">${excelCell(column.group)}</th>`)
+    .join("");
+  const headerLine = excelColumns
+    .map((column) => `<th>${excelCell(column.header)}</th>`)
+    .join("");
+  const body = rows
+    .map(
+      (item, index) => `
+    <tr class="${index % 2 ? "even" : "odd"}">
+      ${excelColumns.map((column) => `<td>${excelCell(displayValue(column.key, item))}</td>`).join("")}
+    </tr>
+  `,
+    )
+    .join("");
+
+  return `
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          body { font-family: "Segoe UI", Arial, sans-serif; color: #17202e; }
+          table { border-collapse: collapse; width: 100%; }
+          .title { background: #123f5d; color: #ffffff; font-size: 22px; font-weight: 700; height: 42px; }
+          .subtitle { background: #e8eef4; color: #435469; font-size: 12px; height: 28px; }
+          th { background: #1f6a92; color: #ffffff; font-weight: 700; border: 1px solid #b9c8d6; padding: 8px; text-align: left; white-space: nowrap; }
+          th.group { background: #b98a34; color: #ffffff; text-align: center; }
+          td { border: 1px solid #d9e2ec; padding: 7px; vertical-align: top; mso-number-format: "\\@"; }
+          tr.odd td { background: #ffffff; }
+          tr.even td { background: #f7fafc; }
+          .meta { font-weight: 700; color: #123f5d; }
+          .spacer td { height: 10px; border: 0; background: #ffffff; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr><td class="title" colspan="${excelColumns.length}">Relatório de Solicitações de Passagens e Diárias</td></tr>
+          <tr><td class="subtitle" colspan="${excelColumns.length}"><span class="meta">Gerado em:</span> ${excelCell(generatedAt)} &nbsp; | &nbsp; <span class="meta">Total de registros:</span> ${rows.length}</td></tr>
+          <tr class="spacer"><td colspan="${excelColumns.length}"></td></tr>
+          <tr>${groupLine}</tr>
+          <tr>${headerLine}</tr>
+          ${body}
+        </table>
+      </body>
+    </html>
+  `;
 }
 
 function exportCSV() {
@@ -1716,12 +1962,14 @@ function exportCSV() {
     ? state.filteredResponses
     : state.allResponses;
   if (!rows.length) return alert("Não há dados para exportar.");
-  const csv = convertRowsToCSV(rows);
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const excel = convertRowsToExcel(rows);
+  const blob = new Blob(["\uFEFF" + excel], {
+    type: "application/vnd.ms-excel;charset=utf-8;",
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "solicitacoes_passagens_diarias.csv";
+  a.download = "relatorio_solicitacoes_passagens_diarias.xls";
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1764,17 +2012,13 @@ async function openAdminArea() {
 }
 
 async function initializeBackend() {
-  if (usingCloudDatabase()) {
-    updateStorageStatus();
-    return;
-  }
   try {
     await apiRequest("/health");
     db.api = true;
     db.mode = "backend-api";
   } catch (error) {
     db.api = false;
-    db.mode = "internal-local-storage";
+    db.mode = db.cloud ? "cloud-firestore" : "internal-local-storage";
   }
   updateStorageStatus();
   await validateAdminSession();
@@ -1963,6 +2207,7 @@ document
 
 populateProjectDatalist();
 populateBankDatalist();
+configureDateFields();
 updateDailyLimitField();
 renderTableHeader();
 getAdminUsers();

@@ -1,7 +1,12 @@
 const http = require("http");
 const fs = require("fs/promises");
 const path = require("path");
-const { randomUUID, randomBytes, pbkdf2Sync, timingSafeEqual } = require("crypto");
+const {
+  randomUUID,
+  randomBytes,
+  pbkdf2Sync,
+  timingSafeEqual,
+} = require("crypto");
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT_DIR = __dirname;
@@ -45,14 +50,21 @@ async function readDb() {
   const db = JSON.parse(raw || "{}");
   db.solicitacoes = Array.isArray(db.solicitacoes) ? db.solicitacoes : [];
   db.alteracoes = Array.isArray(db.alteracoes) ? db.alteracoes : [];
-  db.admins = Array.isArray(db.admins) && db.admins.length ? db.admins : [createAdminRecord("admin", DEFAULT_ADMIN_PASSWORD, "padrao")];
+  db.admins =
+    Array.isArray(db.admins) && db.admins.length
+      ? db.admins
+      : [createAdminRecord("admin", DEFAULT_ADMIN_PASSWORD, "padrao")];
   db.sessions = Array.isArray(db.sessions) ? db.sessions : [];
 
   let changed = false;
   db.admins = db.admins.map((admin) => {
     if (admin.passwordHash) return admin;
     changed = true;
-    return createAdminRecord(admin.login, admin.password || DEFAULT_ADMIN_PASSWORD, admin.createdAt || new Date().toLocaleString("pt-BR"));
+    return createAdminRecord(
+      admin.login,
+      admin.password || DEFAULT_ADMIN_PASSWORD,
+      admin.createdAt || new Date().toLocaleString("pt-BR"),
+    );
   });
   db.sessions = db.sessions.filter((session) => {
     const valid = Number(session.expiresAt || 0) > Date.now();
@@ -74,11 +86,19 @@ function sendJson(res, status, payload) {
 }
 
 function normalizeLogin(value) {
-  return String(value || "").trim().toLowerCase();
+  return String(value || "")
+    .trim()
+    .toLowerCase();
 }
 
 function hashPassword(password, salt = randomBytes(16).toString("hex")) {
-  const hash = pbkdf2Sync(String(password), salt, 120000, 32, "sha256").toString("hex");
+  const hash = pbkdf2Sync(
+    String(password),
+    salt,
+    120000,
+    32,
+    "sha256",
+  ).toString("hex");
   return `${salt}:${hash}`;
 }
 
@@ -88,10 +108,17 @@ function verifyPassword(password, storedHash) {
   const candidate = hashPassword(password, salt).split(":")[1];
   const hashBuffer = Buffer.from(hash, "hex");
   const candidateBuffer = Buffer.from(candidate, "hex");
-  return hashBuffer.length === candidateBuffer.length && timingSafeEqual(hashBuffer, candidateBuffer);
+  return (
+    hashBuffer.length === candidateBuffer.length &&
+    timingSafeEqual(hashBuffer, candidateBuffer)
+  );
 }
 
-function createAdminRecord(login, password, createdAt = new Date().toLocaleString("pt-BR")) {
+function createAdminRecord(
+  login,
+  password,
+  createdAt = new Date().toLocaleString("pt-BR"),
+) {
   return {
     id: randomUUID(),
     login: normalizeLogin(login),
@@ -126,12 +153,16 @@ function bearerToken(req) {
 async function requireAuth(req, res) {
   const token = bearerToken(req);
   const db = await readDb();
-  const session = db.sessions.find((item) => item.token === token && Number(item.expiresAt || 0) > Date.now());
+  const session = db.sessions.find(
+    (item) => item.token === token && Number(item.expiresAt || 0) > Date.now(),
+  );
   if (!session) {
     sendJson(res, 401, { error: "Sessao expirada. Faça login novamente." });
     return null;
   }
-  const user = db.admins.find((admin) => normalizeLogin(admin.login) === normalizeLogin(session.login));
+  const user = db.admins.find(
+    (admin) => normalizeLogin(admin.login) === normalizeLogin(session.login),
+  );
   if (!user) {
     sendJson(res, 401, { error: "Usuario administrativo nao encontrado." });
     return null;
@@ -148,7 +179,11 @@ function collectionNameFromUrl(pathname) {
 function sortRows(rows, query) {
   const sortField = query.get("sort") || "createdAt";
   const direction = query.get("order") === "asc" ? 1 : -1;
-  return [...rows].sort((a, b) => String(a[sortField] || "").localeCompare(String(b[sortField] || "")) * direction);
+  return [...rows].sort(
+    (a, b) =>
+      String(a[sortField] || "").localeCompare(String(b[sortField] || "")) *
+      direction,
+  );
 }
 
 async function readBody(req) {
@@ -172,19 +207,31 @@ async function handleApi(req, res, url) {
   if (url.pathname === "/api/auth/login" && req.method === "POST") {
     const body = await readBody(req);
     const db = await readDb();
-    const user = db.admins.find((item) => normalizeLogin(item.login) === normalizeLogin(body.login) && verifyPassword(body.password, item.passwordHash));
-    if (!user) return sendJson(res, 401, { error: "Login ou senha invalidos." });
+    const user = db.admins.find(
+      (item) =>
+        normalizeLogin(item.login) === normalizeLogin(body.login) &&
+        verifyPassword(body.password, item.passwordHash),
+    );
+    if (!user)
+      return sendJson(res, 401, { error: "Login ou senha invalidos." });
     const session = createSession(user.login);
     db.sessions.push(session);
     await writeDb(db);
-    sendJson(res, 200, { token: session.token, expiresAt: session.expiresAt, user: publicAdmin(user) });
+    sendJson(res, 200, {
+      token: session.token,
+      expiresAt: session.expiresAt,
+      user: publicAdmin(user),
+    });
     return;
   }
 
   if (url.pathname === "/api/auth/me" && req.method === "GET") {
     const authContext = await requireAuth(req, res);
     if (!authContext) return;
-    sendJson(res, 200, { user: publicAdmin(authContext.user), expiresAt: authContext.session.expiresAt });
+    sendJson(res, 200, {
+      user: publicAdmin(authContext.user),
+      expiresAt: authContext.session.expiresAt,
+    });
     return;
   }
 
@@ -211,8 +258,15 @@ async function handleApi(req, res, url) {
     const login = normalizeLogin(body.login);
     const password = String(body.password || "").trim();
     if (!login) return sendJson(res, 400, { error: "Informe um login." });
-    if (password.length < 6) return sendJson(res, 400, { error: "A senha precisa ter pelo menos 6 caracteres." });
-    if (authContext.db.admins.some((admin) => normalizeLogin(admin.login) === login)) {
+    if (password.length < 6)
+      return sendJson(res, 400, {
+        error: "A senha precisa ter pelo menos 6 caracteres.",
+      });
+    if (
+      authContext.db.admins.some(
+        (admin) => normalizeLogin(admin.login) === login,
+      )
+    ) {
       return sendJson(res, 409, { error: "Este login ja esta cadastrado." });
     }
     const user = createAdminRecord(login, password);
@@ -240,7 +294,9 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === "GET" && id) {
-    const item = db[collection].find((row) => String(row.id).toUpperCase() === id.toUpperCase());
+    const item = db[collection].find(
+      (row) => String(row.id).toUpperCase() === id.toUpperCase(),
+    );
     if (!item) return sendJson(res, 404, { error: "Registro nao encontrado." });
     sendJson(res, 200, { data: item });
     return;
@@ -250,7 +306,9 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     const rowId = id || body.id || randomUUID();
     const row = { ...body, id: rowId };
-    const index = db[collection].findIndex((item) => String(item.id) === String(rowId));
+    const index = db[collection].findIndex(
+      (item) => String(item.id) === String(rowId),
+    );
     if (index >= 0) db[collection][index] = row;
     else db[collection].push(row);
     await writeDb(db);
@@ -262,7 +320,9 @@ async function handleApi(req, res, url) {
     const authContext = await requireAuth(req, res);
     if (!authContext) return;
     const before = db[collection].length;
-    db[collection] = db[collection].filter((item) => String(item.id) !== String(id));
+    db[collection] = db[collection].filter(
+      (item) => String(item.id) !== String(id),
+    );
     await writeDb(db);
     sendJson(res, 200, { deleted: before !== db[collection].length });
     return;
@@ -272,7 +332,8 @@ async function handleApi(req, res, url) {
 }
 
 async function serveStatic(req, res, url) {
-  const requestedPath = url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
+  const requestedPath =
+    url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
   const filePath = path.normalize(path.join(ROOT_DIR, requestedPath));
   if (!filePath.startsWith(ROOT_DIR)) {
     res.writeHead(403);
@@ -282,7 +343,11 @@ async function serveStatic(req, res, url) {
 
   try {
     const content = await fs.readFile(filePath);
-    res.writeHead(200, { "Content-Type": mimeTypes[path.extname(filePath).toLowerCase()] || "application/octet-stream" });
+    res.writeHead(200, {
+      "Content-Type":
+        mimeTypes[path.extname(filePath).toLowerCase()] ||
+        "application/octet-stream",
+    });
     res.end(content);
   } catch (error) {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });

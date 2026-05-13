@@ -1,0 +1,12 @@
+{
+  "name": "nugp-control",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Formulario de solicitacao de passagens e diarias com painel administrativo.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
