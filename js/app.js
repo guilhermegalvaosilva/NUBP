@@ -1067,7 +1067,7 @@ function generatePDF(data) {
     docPDF.text("Comprovante de Solicitação", margin + 58, 15);
     docPDF.setFontSize(9);
     docPDF.setFont("helvetica", "normal");
-    docPDF.text("Passagens e Diárias | NUGP", margin + 58, 23);
+    docPDF.text("Passagens e Diárias | NUGB", margin + 58, 23);
     docPDF.setFont("helvetica", "bold");
     docPDF.text(`Protocolo: ${data.id}`, pageWidth - margin, 14, {
       align: "right",
@@ -1091,7 +1091,7 @@ function generatePDF(data) {
       docPDF.setTextColor(102, 117, 138);
       docPDF.setFontSize(8);
       docPDF.text(
-        "Documento gerado automaticamente pelo sistema NUGP.",
+        "Documento gerado automaticamente pelo sistema NUGB.",
         margin,
         pageHeight - 10,
       );
