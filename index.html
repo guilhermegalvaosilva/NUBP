@@ -433,11 +433,16 @@
                 ><img
                   src="img/Captura de tela 2026-04-14 121940.png"
                   alt="Fiocruz Bras&iacute;lia" /></span
-              ><span>NUGB Viagens</span>
+              ><span
+                >NUGB Viagens<small>Painel administrativo</small></span
+              >
             </div>
             <nav class="sidebar-nav">
+              <span class="sidebar-section-label">Navega&ccedil;&atilde;o</span>
               <button type="button" class="active" data-admin-tab="dashboard">
                 Dashboard</button
+              ><button type="button" data-admin-tab="solicitacoes">
+                Solicita&ccedil;&otilde;es</button
               ><button type="button" data-admin-tab="alteracoes">
                 Altera&ccedil;&otilde;es</button
               ><button type="button" data-admin-tab="notificacoes">
@@ -445,27 +450,39 @@
               ><button type="button" data-admin-tab="financeiro">
                 Financeiro</button
               ><button type="button" data-admin-tab="voos">Voos</button
-              ><button type="button" data-admin-tab="solicitacoes">
-                Solicita&ccedil;&otilde;es</button
-              ><button type="button" data-export>Exportar Excel</button
-              ><button type="button" data-logout>Sair</button>
+              ><div class="sidebar-action-group">
+                <span class="sidebar-section-label"
+                  >Opera&ccedil;&otilde;es</span
+                >
+                <button type="button" data-export>Exportar Excel</button
+                ><button type="button" data-logout>Sair</button>
+              </div>
             </nav>
           </aside>
           <div class="dashboard-content">
             <div id="dashboardTop" class="dashboard-header">
-              <div>
+              <div class="dashboard-title-block">
                 <span class="section-kicker">Vis&atilde;o administrativa</span>
                 <h2>Painel Administrativo</h2>
                 <p id="storageSubtitle" class="subtitle">
                   Dados carregados do banco interno do navegador.
                 </p>
               </div>
-              <div class="dashboard-actions">
-                <button type="button" id="refreshButton">Atualizar</button
-                ><button type="button" data-export>Exportar Excel</button
-                ><button type="button" class="btn-ghost" data-logout>
-                  Sair
-                </button>
+              <div class="dashboard-header-meta">
+                <div class="admin-session-card">
+                  <span class="status-dot"></span>
+                  <div>
+                    <small>Usu&aacute;rio ativo</small>
+                    <strong id="adminUserLabel">admin</strong>
+                  </div>
+                </div>
+                <div class="dashboard-actions">
+                  <button type="button" id="refreshButton">Atualizar</button
+                  ><button type="button" data-export>Exportar Excel</button
+                  ><button type="button" class="btn-ghost" data-logout>
+                    Sair
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -597,8 +614,8 @@
                     <span class="section-kicker">Hist&oacute;rico do dia</span>
                     <h3>Altera&ccedil;&otilde;es realizadas</h3>
                     <p class="table-note">
-                      Mostra somente as linhas registradas hoje para facilitar a
-                      leitura dos formul&aacute;rios alterados no dia.
+                      Mostra somente edi&ccedil;&otilde;es registradas hoje em
+                      formul&aacute;rios carregados pelo ID.
                     </p>
                   </div>
                   <div class="audit-count">

@@ -10,6 +10,8 @@ const STORAGE_KEYS = {
   auditLogs: "formulario_demanda_alteracoes",
   admins: "formulario_demanda_admins",
   session: "formulario_demanda_admin_session",
+  activePage: "formulario_demanda_active_page",
+  activeAdminTab: "formulario_demanda_active_admin_tab",
 };
 const DEFAULT_ADMIN = {
   login: "admin",
@@ -101,6 +103,16 @@ function readJSON(key, fallback) {
 function writeJSON(key, value) {
   if (!storageAvailable()) return;
   window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+function readStorageValue(key, fallback = "") {
+  if (!storageAvailable()) return fallback;
+  return window.localStorage.getItem(key) || fallback;
+}
+
+function writeStorageValue(key, value) {
+  if (!storageAvailable()) return;
+  window.localStorage.setItem(key, value);
 }
 
 function savedSession() {
@@ -594,6 +606,13 @@ function normalizeText(value) {
     .replace(/\s+/g, " ");
 }
 
+function normalizedFilterText(value) {
+  return normalizeText(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
 function onlyDigits(value) {
   return String(value || "").replace(/\D/g, "");
 }
@@ -796,10 +815,15 @@ const pages = {
 };
 
 function showPage(pageName) {
+  if (!pages[pageName]) pageName = "home";
   Object.values(pages).forEach((page) => page.classList.add("hidden"));
   pages[pageName].classList.remove("hidden");
+  writeStorageValue(STORAGE_KEYS.activePage, pageName);
   window.scrollTo({ top: 0, behavior: "smooth" });
-  if (pageName === "admin") loadRequests();
+  if (pageName === "admin") {
+    updateAdminIdentity();
+    loadRequests();
+  }
 }
 
 function showMessage(targetId, text, type = "success") {
@@ -808,13 +832,18 @@ function showMessage(targetId, text, type = "success") {
 }
 
 function switchAdminTab(tabName) {
-  state.activeAdminTab = tabName;
+  const availableTabs = Array.from(
+    document.querySelectorAll("[data-admin-tab]"),
+  ).map((button) => button.dataset.adminTab);
+  const nextTab = availableTabs.includes(tabName) ? tabName : "dashboard";
+  state.activeAdminTab = nextTab;
   document.querySelectorAll("[data-admin-tab]").forEach((button) => {
-    button.classList.toggle("active", button.dataset.adminTab === tabName);
+    button.classList.toggle("active", button.dataset.adminTab === nextTab);
   });
   document.querySelectorAll("[data-admin-panel]").forEach((panel) => {
-    panel.classList.toggle("active", panel.dataset.adminPanel === tabName);
+    panel.classList.toggle("active", panel.dataset.adminPanel === nextTab);
   });
+  writeStorageValue(STORAGE_KEYS.activeAdminTab, nextTab);
 }
 
 function updateStorageStatus() {
@@ -837,6 +866,12 @@ function updateStorageStatus() {
         ? "Dados sincronizados pelo backend local e disponíveis para todos que acessarem este servidor."
         : "Dados carregados do banco interno deste navegador. Configure o Firebase ou use o backend local para sincronizar entre computadores.";
   }
+}
+
+function updateAdminIdentity() {
+  const target = document.getElementById("adminUserLabel");
+  if (!target) return;
+  target.textContent = currentUser()?.login || "admin";
 }
 
 function todayInputValue() {
@@ -1704,8 +1739,24 @@ function renderNotifications(logs) {
     : `<div class="empty-records">Ainda não há notificações de alterações.</div>`;
 }
 
+function isEditionAuditLog(log) {
+  const type = normalizedFilterText(log.tipoAlteracao);
+  const origin = normalizedFilterText(log.origem);
+  const reason = normalizedFilterText(log.motivoAlteracao);
+  if (type.includes("criacao") || reason.startsWith("novo formulario")) {
+    return false;
+  }
+  return (
+    type.includes("edicao") ||
+    origin.includes("edicao") ||
+    reason.includes("atualizado")
+  );
+}
+
 function renderAuditPanel() {
-  const todayLogs = state.auditLogs.filter((log) => isToday(log.dataAlteracao));
+  const todayLogs = state.auditLogs.filter(
+    (log) => isToday(log.dataAlteracao) && isEditionAuditLog(log),
+  );
   const tableTarget = document.getElementById("changesTable");
   const countTarget = document.getElementById("todayChangesCount");
   if (countTarget) countTarget.textContent = String(todayLogs.length);
@@ -1835,7 +1886,7 @@ function renderRecordCards() {
         .join("");
 
       return `
-      <article class="record-card">
+      <article class="record-card" data-record-card>
         <div class="record-card-header">
           <div>
             <span class="record-id">${escapeHTML(item.id)}</span>
@@ -1843,6 +1894,15 @@ function renderRecordCards() {
             <small>${escapeHTML(createdAtDisplay(item))}${item.updatedAtClient ? ` | Atualizada em ${escapeHTML(item.updatedAtClient)}` : ""}</small>
           </div>
           <span class="status-pill">${escapeHTML(item.status || "Recebida")}</span>
+          <button
+            type="button"
+            class="record-toggle"
+            data-toggle-record
+            aria-expanded="false"
+            aria-label="Expandir detalhes da solicitaÃ§Ã£o ${escapeHTML(item.id)}"
+          >
+            <span aria-hidden="true">&#9662;</span>
+          </button>
         </div>
         <div class="record-card-body">${sections}</div>
         <div class="record-actions">
@@ -2024,6 +2084,22 @@ async function initializeBackend() {
   await validateAdminSession();
 }
 
+async function initializeAppView() {
+  switchAdminTab(readStorageValue(STORAGE_KEYS.activeAdminTab, "dashboard"));
+  await initializeBackend();
+
+  const savedPage = readStorageValue(STORAGE_KEYS.activePage, "home");
+  if (savedPage === "admin") {
+    await openAdminArea();
+    return;
+  }
+  if (savedPage === "login" || savedPage === "form") {
+    showPage(savedPage);
+    return;
+  }
+  showPage("home");
+}
+
 document
   .getElementById("chooseAdminButton")
   .addEventListener("click", openAdminArea);
@@ -2196,9 +2272,24 @@ document
 document
   .getElementById("responsesTable")
   .addEventListener("click", async (event) => {
-    const editId = event.target.dataset.edit;
-    const pdfId = event.target.dataset.pdf;
-    const deleteId = event.target.dataset.delete;
+    const toggleButton = event.target.closest("[data-toggle-record]");
+    if (toggleButton) {
+      const card = toggleButton.closest("[data-record-card]");
+      const expanded = card.classList.toggle("expanded");
+      toggleButton.setAttribute("aria-expanded", String(expanded));
+      toggleButton.setAttribute(
+        "aria-label",
+        `${expanded ? "Recolher" : "Expandir"} detalhes da solicitaÃ§Ã£o`,
+      );
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit]");
+    const pdfButton = event.target.closest("[data-pdf]");
+    const deleteButton = event.target.closest("[data-delete]");
+    const editId = editButton?.dataset.edit;
+    const pdfId = pdfButton?.dataset.pdf;
+    const deleteId = deleteButton?.dataset.delete;
     if (editId) await loadRequestForEditing(editId);
     if (pdfId)
       generatePDF(state.allResponses.find((item) => item.id === pdfId));
@@ -2211,6 +2302,4 @@ configureDateFields();
 updateDailyLimitField();
 renderTableHeader();
 getAdminUsers();
-switchAdminTab(state.activeAdminTab);
-initializeBackend();
-showPage("home");
+initializeAppView();

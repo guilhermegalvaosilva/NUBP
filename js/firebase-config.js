@@ -1,13 +1,3 @@
-// Configure aqui o Firebase para salvar as solicitações na nuvem.
-// Quando enabled estiver false, o sistema continua usando o armazenamento local do navegador.
-// Para ativar:
-// 1. Crie um projeto no Firebase.
-// 2. Ative o Firestore Database.
-// 3. Copie a configuração do app Web para os campos abaixo.
-// 4. Troque enabled para true.
-
-// Configure aqui o Firebase para salvar as solicitações na nuvem.
-// Quando enabled estiver false, o sistema continua usando o armazenamento local do navegador.
 
 window.FIREBASE_CONFIG = {
   enabled: true,
